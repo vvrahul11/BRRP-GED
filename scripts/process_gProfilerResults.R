@@ -1,4 +1,4 @@
-setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest")
+#setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest")
 
 #
 #' @ Author: Develped by Rahul Valiya Veettil and Eitan Rubin
@@ -53,7 +53,7 @@ library(limma)       # Package for differential gene expression
 require(Biobase)     # convert data to expressionset object
 
 # Set working directory
-setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest")
+#setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest")
 
 removeNAvalues <- function(genes){
   # The probes obtained from the Gyoffry data set was mapped to their corresponding genes 
@@ -120,7 +120,7 @@ probeSummation <- function(genes, t.test.result){
   # Give column names
   colnames(gene.data) <- c('Gene', 'Probe','t_test', 'p_value')
   #rm (gene.level.data, genes, ig_r_5, this.data.slice, this.data.slice.means, this.gene, this.probes, genes.to.process);
-  write.csv(gene.data, file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/ProbeSummarized2gene_usingTtest.csv")
+  write.csv(gene.data, file = "Output/ProbeSummarized2gene_usingTtest.csv")
   #write.csv(list_na, file = "NA probes_of the expr data.csv")
   
   # ## I was able to retrieve 14114 genes and probes from the gprofiler
@@ -135,7 +135,7 @@ readExpressiondataBreastCancer <- function(probe_expr){
   # 
   probe.df.rownames = probe_expr$Patient
   probe_expr_clinical = probe_expr[, c(1:6, 22222:22228)]
-  write.csv(file = "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-3 top131(123mappedCPDB)Genes/ProbeExpressionClinical.csv"
+  write.csv(file = "Output/ProbeExpressionClinical.csv"
             , probe_expr_clinical)
   probe_expr = probe_expr[, -c(1:6, 22222, 22224:22228)]
   
@@ -143,8 +143,8 @@ readExpressiondataBreastCancer <- function(probe_expr){
   # There was some problem with converting the character matrix to 
   # numeric matric due to memory problem. To avoid that this is one 
   # of the easiest way
-  write.csv(probe_expr, "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/probe_expr_numeric.csv")
-  probe_expr = read.csv("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/probe_expr_numeric.csv", header = T)
+  write.csv(probe_expr, "Output/probe_expr_numeric.csv")
+  probe_expr = read.csv("Output/probe_expr_numeric.csv", header = T)
   
   RFS = probe_expr$RFS
   
@@ -170,7 +170,7 @@ readExpressiondataBreastCancer <- function(probe_expr){
 }
 
 HNF4A_interactors_identify <- function(){
-  innateDB_HNF4A = read.table("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/Information Gain Only/HNF4A_target_Genes/InnateDB_HNF4A_fromWeb.txt"
+  innateDB_HNF4A = read.table("Data/InnateDB_HNF4A_fromWeb.txt"
                               , sep = "\t"
                               , as.is = T
                               , fill = NA)
@@ -924,10 +924,13 @@ generate_clique_network = function(expr){
 
 
 #### Main #####
+InputPath = "Data"
+OutputPath = "Output"
+Figures = "Figures"
 
-# Input files
-# TODO: Input data probe based expression
-combined = read.csv("/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/OriginalData and clinical/CombinedExpression.csv")
+# --------------------- Read expression data ----------------------
+# TODO: Input data probe based expression #1519, 22228
+combined = read.csv(paste0(InputPath, "/", "CombinedExpression.csv"))
 
 # Remove clnical data
 combined_filetered = combined[, c(7:22221,22223)]

@@ -1,14 +1,67 @@
-require(ggplot2)
-library(ggpubr)
-library(reshape2)
-library(survival)
-library(survplot)
-library(maigesPack)
-library(plyr)
-library(mixtools)
-library(cowplot)
+setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest")
+
+#
+#' @ Author: Develped by Rahul Valiya Veettil and Eitan Rubin
+#' @ email: rahul.epfl@gmail.com, erubin@bgu.ac.il
+#' @ University: Ben-Gurion University of the negev, Israel
+#' 
+#' The script takes 1809 breast cancer patient samples obtained from 
+#' the scientific paper  “Gyo¨rffy et. al, An online survival analysis
+#' tool to rapidly assess the effect of 22,277 genes on breast cancer
+#' prognosis using microarray data of 1,809 patients, Breast Cancer 
+#' Research and Treatment, 2010.  (Link : https://www.ncbi.nlm.nih.gov/pubmed/20020197)
+#' 
+#' ### The exact location of the data is at 
+#' #   http://kmplot.com/analysis/studies/@MAS5_1000_1809_rounded_final.zip
+#' 
+#' 
+#' 
+#' Multiple correction: Idea 
+#' https://stats.stackexchange.com/questions/128894/p-value-correction-for-multiple-t-tests
+#'  lets take the generic example of doing 100 comparisons using a significance threshold of 0.05.
+#' Now, a p-value of 0.05 means there is a 5% chance of getting that result when the null hypothesis
+#' is true. Therefore, if you do these 100 comparisons, you would expect to find 5 genes significant
+#' just by random chance.
+#' The choice in correction can vary too. Bonferroni is a common correction but if you have 1000s
+#' of genes, it is going to be exceedingly unlikely you will find anything significant because it
+#' will be so conservative. In that case, you may use the FDR (False Discovery Rate) correction. 
+#' 
+#' set.seed(8)
+#' df <- data.frame(expression=runif(1000), 
+#'                  gene=rep(paste("gene", seq(250)), 4), 
+#'                  treatment = rep(c("A","A","B","B"), each=250))
+#' 
+#' 
+#' out <- do.call("rbind", 
+#'     lapply(split(df, df$gene), function(x) t.test(expression~treatment, x)$p.value))
+#' 
+#' length(which(out < 0.05))  This was a random data and still 9 significant genes...Therefore you should
+#' apply FDR
+#
+
+# Load libraries 
+require(ggplot2)     # for data visualization
+library(ggpubr)      # for data visualization
+library(reshape2)    # Transform data between wide and long format
+library(survival)    # Survival analysis
+library(survplot)    # Survival analysis visualization
+library(maigesPack)  # microarray
+library(plyr)        # Data preprocessing
+library(mixtools)    # for mixture models
+library(cowplot)     # Add-on for ggplot
+library(limma)       # Package for differential gene expression 
+require(Biobase)     # convert data to expressionset object
+
+# Set working directory
+setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest")
 
 removeNAvalues <- function(genes){
+  # The probes obtained from the Gyoffry data set was mapped to their corresponding genes 
+  # using gprofiler tool. There are several probes for which gprofiler couldnot find a match
+  # which were annotated with NA values.
+  # 
+  # This funtion is used to remove those NA values
+  
   # List of all N/A probes (no result in gprofiler) and removing them from the data:
   NA_list_size = dim(genes[which(genes[,2] == 'N/A'), ])[1] #  17037 -> 2023
   gene_list_size = dim(genes[which(genes[,2] != 'N/A'), ])[1] #17037 -> 15014
@@ -33,9 +86,13 @@ removeNAvalues <- function(genes){
   return(genes)
 }
 
-probeSummation <- function(genes
-                           , t.test.result
-                           , pathOUT){
+probeSummation <- function(genes, t.test.result){
+  # 
+  # For probe selection we used an approach where we selected the probe that 
+  # is the best separator between recurred and non-recurred patients, from all possible 
+  # probes that maps to a gene
+  # 
+  
   gene.level.data=NULL;
   genes.to.process= unique(genes$Gene);
   for (this.gene in genes.to.process) {
@@ -63,19 +120,22 @@ probeSummation <- function(genes
   # Give column names
   colnames(gene.data) <- c('Gene', 'Probe','t_test', 'p_value')
   #rm (gene.level.data, genes, ig_r_5, this.data.slice, this.data.slice.means, this.gene, this.probes, genes.to.process);
-  write.csv(gene.data
-            , file = paste0(pathOUT, "/", "ProbeSummarized2gene_usingTtest.csv"))
-            #, file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/ProbeSummarized2gene_usingTtest.csv")
+  write.csv(gene.data, file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/ProbeSummarized2gene_usingTtest.csv")
   #write.csv(list_na, file = "NA probes_of the expr data.csv")
   
   # ## I was able to retrieve 14114 genes and probes from the gprofiler
   return(gene.data)
 }
 
-dataTransformation_clin_expr<- function(probe_expr, pathOUT){
+readExpressiondataBreastCancer <- function(probe_expr){
+  #
+  # Read the breast cancer data
+  # Seperate the clinical features from expression features
+  # Transpose the data so that each row is a patient and each column is a gene
+  # 
   probe.df.rownames = probe_expr$Patient
   probe_expr_clinical = probe_expr[, c(1:6, 22222:22228)]
-  write.csv(file = paste0(pathOUT, "/", "/ProbeExpressionClinical.csv")
+  write.csv(file = "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-3 top131(123mappedCPDB)Genes/ProbeExpressionClinical.csv"
             , probe_expr_clinical)
   probe_expr = probe_expr[, -c(1:6, 22222, 22224:22228)]
   
@@ -83,10 +143,8 @@ dataTransformation_clin_expr<- function(probe_expr, pathOUT){
   # There was some problem with converting the character matrix to 
   # numeric matric due to memory problem. To avoid that this is one 
   # of the easiest way
-  write.csv(probe_expr
-            , paste0(pathOUT, "/", "probe_expr_numeric.csv"))
-  probe_expr = read.csv(paste0(pathOUT, "/", "probe_expr_numeric.csv")
-                               , header = T)
+  write.csv(probe_expr, "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/probe_expr_numeric.csv")
+  probe_expr = read.csv("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/probe_expr_numeric.csv", header = T)
   
   RFS = probe_expr$RFS
   
@@ -198,7 +256,7 @@ find_HNF4A_interactors <- function(gene.data){
   save(gene_expression
        , file = "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/gene_expression.RData")
   # load file gene_expression
-  load(file = "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter/Step -2 Probe2Gene/gene_expression.RData")
+  load(file = "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/gene_expression.RData")
   
   # Read an old file containing clinical data 
   probe_expr_clinical = read.csv("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-3 top131(123mappedCPDB)Genes/ProbeExpressionClinical.csv")
@@ -229,16 +287,13 @@ find_HNF4A_interactors <- function(gene.data){
   
 }
   
-savefiles <- function(gene_expression
-                      , probe_expression
-                      , gene.data
-                      , pathOUT){
-  setwd(pathOUT)
-  write.csv(gene_expression
-            , "geneLevel_expression.csv")
-  write.csv(probe_expression
-            , "probeLevel_expression.csv")
+savefiles <- function(gene_expression, probe_expression, gene.data){
+  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene")
+  write.csv(gene_expression, "geneLevel_expression.csv")
+  write.csv(probe_expression, "probeLevel_expression.csv")
   
+  # Change directory and save the gene names and probe names
+  setwd("/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased")
   write.table(file = "backgroundgenes_13126.txt"
               , names(gene_expression)
               , row.names = F
@@ -251,11 +306,13 @@ savefiles <- function(gene_expression
   
   
   ### Create a new csv file containg probename, genename, t-test and pvalue 
+  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-2.1 Probe2Gene/")
   write.csv(gene.data[order(gene.data$p_value),]
             , "List.probe.gene.5y.csv")
   
   
   ## Save top 1% genes
+  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-3 top131(123mappedCPDB)Genes/")
   write.table(gene.data[order(gene.data$p_value),][,1][1:131]
               , "Top131genes.txt"
               , quote = F
@@ -280,7 +337,7 @@ savefiles <- function(gene_expression
   
 }
 
-arrangeAndsaveData <- function(df.new, pathOUT){
+arrangeAndsaveData <- function(df.new){
   df.new.Gene = df.new[, -c(1, 3, 4)]
   df.new.Probe = df.new[, -c(2, 3, 4)]
   
@@ -291,10 +348,7 @@ arrangeAndsaveData <- function(df.new, pathOUT){
   names(probe_expression) = df.new.Probe[, 1]
   
   # save the files
-  savefiles(gene_expression
-            , probe_expression
-            , gene.data
-            , pathOUT)
+  savefiles(gene_expression, probe_expression, gene.data)
   
   return(gene_expression)
   
@@ -314,9 +368,79 @@ t.test_function <- function( group1, group2) {
   return(statistics)
 }
 
-Figure_one <- function(gene_expression
-                       , gene.data
-                       , Figures){
+limma_analysis <- function(group1, group2, dim1, dim2){
+  
+  data = merge(group1
+               , group2
+               , by = "row.names"
+  )
+  row.names(data) = data$Row.names
+  data$Row.names = NULL  
+  
+  # The dataframe needs to be converted to an ExpressionSet object to be used with limma
+  rma95<-new("ExpressionSet", exprs=as.matrix(data))
+  
+  
+  fac <- factor(rep(1:2,c(dim1, dim2)))
+  
+  
+  fit <- lmFit(rma95, design=model.matrix(~ fac))
+  colnames(coef(fit))
+  
+  fit <- eBayes(fit)
+  tt <- topTable(fit, coef=2)
+  write.csv(tt, "../limma-test.csv"
+            , stringsAsFactors = FALSE)
+  
+  # view first few lines of the top genes
+  # topTable(fit, coef=2, number=Inf, sort.by="none")
+  
+  return(tt)
+  
+}
+
+probeSummation_limma <- function(genes, limma_result){
+  # 
+  # For probe selection we used an approach where we selected the probe that 
+  # is the best separator between recurred and non-recurred patients, from all possible 
+  # probes that maps to a gene
+  # 
+  
+  gene.level.data=NULL;
+  genes.to.process= unique(genes$Gene);
+  for (this.gene in genes.to.process) {
+    #this.gene = "ATG3"
+    this.probes= genes$Probe[genes$Gene==this.gene];
+    #this.probes
+    this.data.slice= limma_result[limma_result[,"Probe"] %in% this.probes,];
+    #this.data.slice
+    this.data.slice.means =   this.data.slice[which(this.data.slice$p_value == min(this.data.slice$p_value)), ]
+    #this.data.slice.means  
+    gene.level.data=rbind(gene.level.data,this.data.slice.means)
+  }
+  
+  dim(gene.level.data)
+  gene.level.data[1:5,]
+  ### Make sure that the number of probes ie the 
+  ### length of genes.to.process and gene.level.data$Probe are the same
+  length(gene.level.data$Probe)
+  length(genes.to.process)
+  # We were able to map 19878 unique probes to 13101 unique genes
+  
+  # Combine the unique gene names to their corresponsing probe name
+  gene.data=cbind(genes.to.process, gene.level.data)
+  rownames(gene.data) <- 1:dim(gene.data)[1]
+  # Give column names
+  colnames(gene.data) <- c('Gene', 'Probe','t_test', 'p_value')
+  #rm (gene.level.data, genes, ig_r_5, this.data.slice, this.data.slice.means, this.gene, this.probes, genes.to.process);
+  write.csv(gene.data, file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/ProbeSummarized2gene_usingTtest.csv")
+  #write.csv(list_na, file = "NA probes_of the expr data.csv")
+  
+  # ## I was able to retrieve 14114 genes and probes from the gprofiler
+  return(gene.data)
+}
+
+Figure_one <- function(gene_expression, gene.data){
   top10_gene= gene.data$Gene[1:10]
   topIGgenes = gene_expression[, c(as.character(top10_gene), "RFS_event")]
   
@@ -328,10 +452,12 @@ Figure_one <- function(gene_expression
   #tmp.df$variable = as.character(tmp.df$variable)
   summary(tmp.df)
   
+  # DATA #####
   df = abs(gene.data$t_test)
   # Fit the normal mixture(s)
   mixmdl <- normalmixEM(df, k = 3)
   
+  #################Plot1 ########################
   # GLOBAL THEME AND GLOBAL AESTHETICS
   old <- theme_set(theme_bw() +
                      theme(text = element_text(size=12),
@@ -387,6 +513,7 @@ Figure_one <- function(gene_expression
                                        , color = "black"))
   
   
+  ################Plot 2 #######################
   p2 <- ggplot(tmp.df
                , aes(x = variable
                      , y = log10(value)
@@ -418,8 +545,10 @@ Figure_one <- function(gene_expression
   
   
   
+  ####### save the plot ######
+  
   p = cowplot::plot_grid(p1, p2, labels = "auto" )
-  save_plot(paste0(Figures, "/", "Figure1.pdf"), p, ncol = 2)
+  save_plot("Figure1.pdf", p, ncol = 2)
   
 }
 
@@ -444,12 +573,8 @@ analyze_mixdist <- function (gene.data){
 }
 
 ### Function to save files
-save_expression_sorted_files <- function(expr
-                                         , clin
-                                         , filename1
-                                         , filename2
-                                         , pathOUT){
-  setwd(pathOUT)
+save_expression_sorted_files <- function(expr, clin, filename1, filename2){
+  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step 6 - kmplotter/")
   write.table(expr
               , filename1
               , sep = "\t"
@@ -463,21 +588,14 @@ save_expression_sorted_files <- function(expr
 }
 
 ### Functions to write file
-sortAffy <- function(expr
-                     , clin
-                     , type
-                     , pathOUT){
+sortAffy <- function(expr, clin, type){
   names(expr)[1] = "AffyID"
   names(clin)[2] = "AffyID"
   clin = clin[order(clin$AffyID), ]
   expr = expr[order(expr$AffyID), ]
   filename1 = "@GEO expression data_sorted.txt"
   filename2 = "@GEO clinical data_sorted.txt"
-  save_expression_sorted_files(expr
-                               , clin
-                               , filename1
-                               , filename2
-                               , pathOUT)
+  save_expression_sorted_files(expr, clin, filename1, filename2)
   
   return(list(expr, clin))
   
@@ -645,7 +763,7 @@ kmplot = function(expr, clin, event_index=3
   hrVector = list()
   survival_data = cbind(as.numeric(clin[[time_index]]), as.numeric(clin[[event_index]]));
   
-  toDir = createDirectory(file_name);
+  toDir = createDirectory("res");
   resTable=rbind();
   
   index_arr = 2:dim(expr)[2];
@@ -749,6 +867,7 @@ clique_calculation <- function(expr){
 generate_clique_network = function(expr){
   
   ## Create correlation map ##
+  #### create correlation map ####
   size = 27
   d.selected.names = expr[, -1]
   cormat = matrix(nrow=size,ncol=27)
@@ -805,54 +924,51 @@ generate_clique_network = function(expr){
 
 
 #### Main #####
-InputPath = "/home/user/Gyorffy Breast cancer data analysis/Data"
-OutputPath = "/home/user/Gyorffy Breast cancer data analysis/Output"
-Figures = "/home/user/Gyorffy Breast cancer data analysis/Figures"
 
-# --------------------- Read expression data ----------------------
+# Input files
 # TODO: Input data probe based expression
-combined = read.csv(paste0(InputPath, "/", "CombinedExpression.csv"))
+combined = read.csv("/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/OriginalData and clinical/CombinedExpression.csv")
 
 # Remove clnical data
 combined_filetered = combined[, c(7:22221,22223)]
 
 # TODO: Filter recurred and non-recurred event
-combined_event1 = combined_filetered[combined_filetered$RFS_event==1, -22216]
-combined_event0 = combined_filetered[combined_filetered$RFS_event==0, -22216]
+combined_event1 = combined_filetered[combined_filetered$RFS_event==1, -22216]#[1:10, 1:10]
+combined_event0 = combined_filetered[combined_filetered$RFS_event==0, -22216]#[1:12, 1:10]
 
 # TODO: transpose the dataframe so that each row is a probe
 # and we do t-test for each pair for both groups (recurred and non-recurred)
 group1 = t(combined_event1)
 group2 = t(combined_event0)
 
-# --------------------- Perform t-test ----------------------
+# TODO: Perform t-test
 m = t.test_function(group1, group2)
 
-t.test.result = data.frame(Probe = row.names(group1)
-                           , t_test = m$t
-                           , p_value = m$p)
+t.test.result = data.frame(Probe = row.names(group1), t_test = m$t, p_value = m$p)
+#t.test.result = t.test.result[which(t.test.result$p_value < 0.05),]
 t.test.result = t.test.result[order(t.test.result$p_value),]
 
-# Remove 'X' character from the probe name
-probeNames = NULL
-for(i in 1:dim(t.test.result)[1]){
-  new_probe = paste0(strsplit(as.character(t.test.result$Probe[i]), '')[[1]][-1], collapse = '')
-  probeNames[i] = new_probe
+removeXcharacter <- function(df.result){
+  # Remove 'X' character from the probe name
+  df.result$Probe = as.character(df.result$Probe)
+  for(i in 1:dim(df.result)[1]){
+    new_probe = paste0(strsplit(as.character(df.result$Probe[i]), '')[[1]][-1], collapse = '')
+    df.result$Probe[i] = new_probe
+  }
+
+  row.names(df.result) = NULL
+  return(df.result)
 }
 
-t.test.result$Probe = probeNames
-row.names(t.test.result) = NULL
+t.test.result = removeXcharacter(t.test.result)
 
 write.csv(t.test.result
-          , file = paste0(OutputPath, "/", "t.test.result.csv")
+          , file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/t.test.result.csv"
           , row.names = F)
 
 
-# --------------------- Gene Mapping using gprofiler result -----------
 # Use the above probe list and find their gene names
-genes <- read.csv(paste0(InputPath, "/", "gprofiler_results_ttest.csv")
-                  , header=T
-                  , stringsAsFactors=FALSE)
+genes <- read.csv("/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/gprofiler_results_ttest.csv", header=T, stringsAsFactors=FALSE)
 colnames(genes) <- c('Probe','Gene')
 
 # Find all duplicated probes index
@@ -863,7 +979,6 @@ if(length(dup_index) > 0){
   genes = genes[-dup_index,]
 }
 
-# --------------------- Remove NA values from probe-gene list -------------
 # Remove all NA values meaning probes that are not mapped to any gene
 genes = removeNAvalues(genes)
 
@@ -884,24 +999,62 @@ t.test.result = t.test.result[which(t.test.result$Probe %in% genes$Probe == TRUE
 #> dim(genes)
 #[1] 15014     2
 
-
-# --------------------- Perform probe summation ----------------------
 # Probe summation of the probes to get uniquely mapped gene values
-gene.data = probeSummation(genes, t.test.result, OutputPath)
+gene.data = probeSummation(genes, t.test.result)
 
-write.csv(gene.data
-          , paste0(OutputPath, "/", "gene.data.csv"))
+write.csv(gene.data, "gene.data.csv")
 
+
+# ----- Limma validation #
+limma_analysis(group1[, 1:689]
+               , group2[, 1:830])
+
+limma_result = read.csv("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/limm_analysis/limma-test.csv", stringsAsFactors = F)
+# Remove 'X' character from the probe name
+limma_result$X = as.character(limma_result)
+for(i in 1:dim(limma_result)[1]){
+  new_probe = paste0(strsplit(as.character(limma_result$X), '')[[1]][-1], collapse = '')
+  limma_result$X[i] = new_probe
+}
+
+row.names(limma_result) = NULL
+limma_result = limma_result[, c(1, 4, 5, 6)]
+
+colnames(limma_result) = c("Probe", "t_test", "p_value", "adj.P.Val")
+# After removing NA values from 22215 probes we have 19878 probes remaining
+# We will merge this df with ig_r_5 containg calculated IG value so that
+# both file will have the same number of probes
+
+# Select only those unique genes which has a probe value and
+# probes which doent has NA values
+t.test.resultk = limma_result[which(unique(limma_result$Probe) %in% genes$Probe == TRUE),]
+
+t.test.resultk = t.test.result[which(t.test.result$Probe %in% genes$Probe == TRUE),]
+
+
+#> dim(t.test.result)
+#[1] 15014     3
+#> dim(genes)
+#[1] 15014     2
+
+# Probe summation of the probes to get uniquely mapped gene values
+gene.data = probeSummation(genes, t.test.result)
+
+
+
+
+# probe summation
+probeSummation_limma <- probeSummation_limma(genes, limma_result)
 ######### remove unused data ##############
+rm(combined)
 rm(combined_event0)
 rm(combined_event1)
 rm(combined_filetered)
 rm(group1)
 rm(group2)
 
-## Read expression data of breast cancer patients
-probe_expr_transpose = dataTransformation_clin_expr(combined
-                                                      , OutputPath)
+# Read expression data of breast cancer patients
+probe_expr_transpose = readExpressiondataBreastCancer(combined)
 
 dim(probe_expr_transpose)
 #[1] 22216  1520
@@ -935,23 +1088,19 @@ dim(gene.data)
 
 
 
-df.new = merge(gene.data
-               , probe_expr_transpose
-               , by.x = "Probe"
-               , by.y = "Probe")
+df.new = merge(gene.data, probe_expr_transpose, by.x = "Probe", by.y = "Probe")
 df.new[1:5, 1:8]
 dim(df.new)
 
 
 
 # Save gene/probe expressions, save top 1% genes for downstream analysis
-gene_expression = arrangeAndsaveData(df.new
-                                     , OutputPath)
+gene_expression = arrangeAndsaveData(df.new)
 gene_expression$Patient = row.names(gene_expression)
+#gene_expression = read.csv("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene/geneLevel_expression.csv")
 
 # clinical data 
-GEOclin = read.csv(paste0(OutputPath
-                          , "/", "ProbeExpressionClinical.csv"))
+GEOclin = read.csv("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-3 top131(123mappedCPDB)Genes/ProbeExpressionClinical.csv")
 clin = GEOclin[, c("Patient", "RFS_event")]
 
 gene_expression = merge(gene_expression
@@ -960,14 +1109,10 @@ gene_expression = merge(gene_expression
                          , by.y = "Patient")
 
 # Figure 1
-Figure_one(gene_expression
-           , gene.data
-           , Figures )
+Figure_one(gene_expression, gene.data )
 
 # Figure 2 b
-read_centrality = read.table(paste0(InputPath
-                             , "/"
-                             , "centrality.txt")
+read_centrality = read.table("/media/user/Edison1/GeneRank_Ruth/Publication/Final drafts/Supplementary Files/centrality.txt"
                              , nrows=10)
 plot(read_centrality$V2[1:8] 
      , type = "o"
@@ -980,18 +1125,13 @@ plot(read_centrality$V2[1:8]
 #### Microarray data
 GEOexpr = gene_expression
 GEOexpr = subset(GEOexpr, select = -c(RFS_event))
-#rm(GEOexpr)
-#rm(GEOclin)
+rm(GEOexpr)
+rm(GEOclin)
 
 ## FOR GEO data:
-expression_clin_sorted = sortAffy(GEOexpr
-                                  , GEOclin
-                                  , type = "GEO"
-                                  , OutputPath)
+expression_clin_sorted = sortAffy(GEOexpr, GEOclin, type = "GEO")
 expr  = expression_clin_sorted[[1]]
-expr = subset(expr, select = c("AffyID"
-                               , "HNF4A"
-                               , as.character(HNF4A_target_genes)))
+expr = subset(expr, select = c("AffyID", "ESR1", as.character(HNF4A_genes_30$Gene)))
 
 clin  = expression_clin_sorted[[2]]
 

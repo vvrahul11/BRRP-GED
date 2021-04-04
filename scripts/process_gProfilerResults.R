@@ -221,8 +221,8 @@ HNF4A_interactors_identify <- function(){
   # remove HNF4A from the target gene list
   targets_HNF4A = targets_HNF4A[-1197]
   
-  write.table(file = "HNF4A_targets.txt", targets_HNF4A, quote = F, row.names = F)
-  targets_HNF4A = read.table("HNF4A_targets.txt", header = T)
+  write.table(file = "Output/HNF4A_targets.txt", targets_HNF4A, quote = F, row.names = F)
+  targets_HNF4A = read.table("Output/HNF4A_targets.txt", header = T)
   return(targets_HNF4A)
 }
 
@@ -268,7 +268,7 @@ find_HNF4A_interactors <- function(gene.data){
   
   de <- merge(gene_expression, probe_expr_clinical, by.x = "Patient", by.y = "Patient")
   de = de[, -1] # remove ID column
-  write.csv(file = "/media/user/Edison1/GeneRank_Ruth/Noa Deep learning/DeepHNF4A/DeepHNF4A/forPaper_ttest/Gene_expression.csv"
+  write.csv(file = "Output/Gene_expression.csv"
             , de
             , row.names = F)
   
@@ -277,61 +277,57 @@ find_HNF4A_interactors <- function(gene.data){
   
   HNF4A_targets_expressionTop100 = de[, c(levels(droplevels(Top100HNF4Atargets)), "RFS_event")]     
   
-  write.csv(file = "/media/user/Edison1/GeneRank_Ruth/Noa Deep learning/DeepHNF4A/DeepHNF4A/forPaper_ttest/HNF4A_targets_expression.csv"
+  write.csv(file = "Output/HNF4A_targets_expression.csv"
             , HNF4A_targets_expression
             , row.names = F)
   
-  write.csv(file = "/media/user/Edison1/GeneRank_Ruth/Noa Deep learning/DeepHNF4A/DeepHNF4A/forPaper_ttest/HNF4A_targets_expression100.csv"
+  write.csv(file = "Output/HNF4A_targets_expression100.csv"
             , HNF4A_targets_expressionTop100
             , row.names = F)
   
 }
   
 savefiles <- function(gene_expression, probe_expression, gene.data){
-  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step -2 Probe2Gene")
-  write.csv(gene_expression, "geneLevel_expression.csv")
-  write.csv(probe_expression, "probeLevel_expression.csv")
+  write.csv(gene_expression, "Output/geneLevel_expression.csv")
+  write.csv(probe_expression, "Output/probeLevel_expression.csv")
   
   # Change directory and save the gene names and probe names
-  setwd("/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased")
-  write.table(file = "backgroundgenes_13126.txt"
+  write.table(file = "Output/backgroundgenes_13126.txt"
               , names(gene_expression)
               , row.names = F
               , quote = F)
   
-  write.table(file = "backgroundprobes_13126.txt"
+  write.table(file = "Output/backgroundprobes_13126.txt"
               , names(probe_expression)
               , row.names = F
               , quote = F)
   
   
   ### Create a new csv file containg probename, genename, t-test and pvalue 
-  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-2.1 Probe2Gene/")
   write.csv(gene.data[order(gene.data$p_value),]
-            , "List.probe.gene.5y.csv")
+            , "Output/List.probe.gene.5y.csv")
   
   
   ## Save top 1% genes
-  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-3 top131(123mappedCPDB)Genes/")
   write.table(gene.data[order(gene.data$p_value),][,1][1:131]
-              , "Top131genes.txt"
+              , "Output/Top131genes.txt"
               , quote = F
               , row.names= F)
   ## Save top 1% probes
   write.table(gene.data[order(gene.data$p_value),][,2][1:131]
-              , "Top131probes.txt"
+              , "Output/Top131probes.txt"
               , quote = F
               , row.names= F)
   
   ## Save background gene list
   write.table(gene.data[order(gene.data$p_value),][,1]
-              , "backgroundgenes_13126.txt"
+              , "Output/backgroundgenes_13126.txt"
               , quote = F
               , row.names= F)
   
   ## Save background probe list
   write.table(gene.data[order(gene.data$p_value),][,2]
-              , "backgroundprobes_13126.txt"
+              , "Output/backgroundprobes_13126.txt"
               , quote = F
               , row.names= F)
   
@@ -369,7 +365,7 @@ t.test_function <- function( group1, group2) {
 }
 
 limma_analysis <- function(group1, group2, dim1, dim2){
-  
+  #browser()
   data = merge(group1
                , group2
                , by = "row.names"
@@ -389,7 +385,7 @@ limma_analysis <- function(group1, group2, dim1, dim2){
   
   fit <- eBayes(fit)
   tt <- topTable(fit, coef=2)
-  write.csv(tt, "../limma-test.csv"
+  write.csv(tt, "Output/limma-test.csv"
             , stringsAsFactors = FALSE)
   
   # view first few lines of the top genes
@@ -433,7 +429,7 @@ probeSummation_limma <- function(genes, limma_result){
   # Give column names
   colnames(gene.data) <- c('Gene', 'Probe','t_test', 'p_value')
   #rm (gene.level.data, genes, ig_r_5, this.data.slice, this.data.slice.means, this.gene, this.probes, genes.to.process);
-  write.csv(gene.data, file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/ProbeSummarized2gene_usingTtest.csv")
+  write.csv(gene.data, file = "Output/ProbeSummarized2gene_usingTtest.csv")
   #write.csv(list_na, file = "NA probes_of the expr data.csv")
   
   # ## I was able to retrieve 14114 genes and probes from the gprofiler
@@ -574,7 +570,7 @@ analyze_mixdist <- function (gene.data){
 
 ### Function to save files
 save_expression_sorted_files <- function(expr, clin, filename1, filename2){
-  setwd("/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step 6 - kmplotter/")
+  setwd("Output/")
   write.table(expr
               , filename1
               , sep = "\t"
@@ -966,12 +962,12 @@ removeXcharacter <- function(df.result){
 t.test.result = removeXcharacter(t.test.result)
 
 write.csv(t.test.result
-          , file = "/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/t.test.result.csv"
+          , file = "Output/t.test.result.csv"
           , row.names = F)
 
 
 # Use the above probe list and find their gene names
-genes <- read.csv("/media/user/Edison1/GeneRank_Ruth/Data-Noa-GeneBased/gprofiler_results_ttest.csv", header=T, stringsAsFactors=FALSE)
+genes <- read.csv("Data/gprofiler_results_ttest.csv", header=T, stringsAsFactors=FALSE)
 colnames(genes) <- c('Probe','Gene')
 
 # Find all duplicated probes index
@@ -1005,7 +1001,7 @@ t.test.result = t.test.result[which(t.test.result$Probe %in% genes$Probe == TRUE
 # Probe summation of the probes to get uniquely mapped gene values
 gene.data = probeSummation(genes, t.test.result)
 
-write.csv(gene.data, "gene.data.csv")
+write.csv(gene.data, "Output/gene.data.csv")
 
 
 # ----- Limma validation #

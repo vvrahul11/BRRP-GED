@@ -4,8 +4,8 @@
 
 ### Authors: 
 - Rahul Valiya Veettil1, Noah Eyal Altman1, Ruth Hashkes1, Eitan Rubin
-- Department of Microbiology, The Shraga Segal Department of Microbiology, Immunology, and Genetics, Beersheva, Israel
-- Ben-Gurion University of the Negev, 
+Department of Microbiology, The Shraga Segal Department of Microbiology, Immunology, and Genetics, 
+Ben-Gurion University of the Negev, 
 
 ### Data
 The script takes 1809 breast cancer patient samples obtained from the scientific paper “Gyo¨rffy et. al, An online survival analysis tool to rapidly assess the effect of 22,277 genes on breast cancer prognosis using microarray data of 1,809 patients, Breast Cancer Research and Treatment, 2010. (Link : https://www.ncbi.nlm.nih.gov/pubmed/20020197)

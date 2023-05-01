@@ -1202,7 +1202,7 @@ clique_calculation(expr)
 generate_clique_network(expr)
 
 
-### ssave the probe names of HNF4A targets ##
+### save the probe names of HNF4A targets ##
 HNF4A_targets_probes= gene.data[gene.data$Gene %in% c("HNF4A", as.character(HNF4A_genes_30$Gene)), ]
 write.csv(HNF4A_targets_probes
           , file = "/media/user/Edison1/GeneRank_Ruth/Rahul_analysis/jupyter-ttest/Step-2.1 Probe2Gene/HNF4A_targets_probes.csv"

@@ -15,7 +15,7 @@ http://kmplot.com/analysis/studies/@MAS5_1000_1809_rounded_final.zip
 https://kmplot.com/analysis/studies/@expdesc_1809.txt
 
 ### How to create the preprocessed data
-[Notebook](https://github.com/vvrahul11/BRRP-GED/blob/feature-ai/notebooks/data_analysis.ipynb)
+[Notebook](https://github.com/vvrahul11/BRRP-GED/blob/master/notebooks/data_analysis.ipynb)
 
 ### Find recurrence associated genes
-[Rscript](https://github.com/vvrahul11/BRRP-GED/blob/feature-ai/scripts/process_gProfilerResults.R)
+[Rscript](https://github.com/vvrahul11/BRRP-GED/blob/master/scripts/process_gProfilerResults.R)
